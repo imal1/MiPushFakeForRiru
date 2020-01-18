@@ -13,4 +13,3 @@
 .externalNativeBuild
 .cxx
 elf-cleaner.sh
-settings.gradle

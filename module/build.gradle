@@ -14,13 +14,13 @@ android {
     }
 }
 
-def moduleId = "template"
+def moduleId = "mipush_fake"
 def moduleProp = [
-        name       : "Template",
-        version    : "v1.0",
-        versionCode: "1",
-        author     : "Template",
-        description: "Riru module template.",
+        name       : "MiPushFakeForRiru",
+        version    : "v12.0",
+        versionCode: "12",
+        author     : "Timothy",
+        description: "Fake as XiaoMI device by hook system_property_get. Require Riru-Core installed..",
         api        : 4
 ]
 

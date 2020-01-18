@@ -1,6 +1,6 @@
 #!/system/bin/sh
 MODDIR=${0%/*}
-MODULE_ID="template"
+MODULE_ID="mipush_fake"
 
 # Reset context jsut in case
 chcon -R u:object_r:system_file:s0 "$MODDIR"
