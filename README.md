@@ -1,19 +1,25 @@
-# Riru - Template
+# Riru - MiPushFake
 
-[Riru](https://github.com/RikkaApps/Riru) module template.
+![License GPL-3.0](https://img.shields.io/badge/license-GPLv3.0-green.svg)
 
-## Build
+Fake as a Xiaomi device by hooking system_property_get.
 
-1. Rename `module.example.gradle` to `module.gradle`
-2. Replace module info in `module.gradle` (all lines end with `// FIXME replace with yours`)
-3. Write you codes
-4. Run gradle task `:module:assembleRelease` task from Android Studio or command line, zip will be saved in `out`.
+Requires Riru Core installed.
 
-## Notes
+## What does this module do	
 
-* DO NOT overwrite `android.os.SystemProperties#native_set` in core, or your data may be wiped
-  ([Detail info](https://github.com/RikkaApps/Riru/blob/v7/riru-core/jni/main/jni_native_method.cpp#L162-L176))
-  (If you really need to hook this, remember to clear exception)
-* DO NO print log (`__android_log_print`) in `nativeForkAndSpecialize(Pre/Post)` `nativeForkSystemServer(Pre/Post)` when in zygote process, or it may cause zygote not work
-  (magic not confirmed, [Detail info](https://github.com/RikkaApps/Riru/blob/77adfd6a4a6a81bfd20569c910bc4854f2f84f5e/riru-core/jni/main/jni_native_method.cpp#L55-L66))
-* Add `-ffixed-x18` to both compiler and linker parameter, or it will cause problems on Android Q (see template)
+By default, `__system_property_get` (`android::base::GetProperty` on Pie+) will be hooked in packages selected in	
+MiPushFramework with value map below	
+
+* `ro.miui.ui.version.name` -> `V11`	
+* `ro.miui.ui.version.code` -> `9`	
+* `ro.miui.version.code_time` -> `1570636800`	
+* `ro.miui.internal.storage` -> `/sdcard/`	
+* `ro.product.manufacturer` -> `Xiaomi`	
+* `ro.product.brand` -> `Xiaomi`	
+* `ro.product.name` -> `Xiaomi`	
+
+Thanks
+* Timothy Zhang
+* MlgmXyysd
+* Rikka
