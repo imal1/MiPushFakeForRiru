@@ -20,6 +20,24 @@ android {
     }
 }
 
+def moduleProp = [
+        name       : "MiPushFake",
+        version    : "v13.0",
+        versionCode: "13",
+        author     : "Timothy",
+        description: "Fake as XiaoMI device by hook system_property_get. Require Riru-Core installed..",
+        api        : riruApiVersion
+]
+
+def magiskModuleProp = [
+        id         : "riru-${moduleId.replace('_', '-')}",
+        name       : "Riru - ${moduleProp['name']}",
+        version    : moduleProp['version'],
+        versionCode: moduleProp['versionCode'],
+        author     : moduleProp['author'],
+        description: moduleProp['description']
+]
+
 def outDir = file("$rootDir/out")
 def magiskDir = file("$outDir/magisk_module")
 def zipName = "magisk-${magiskModuleProp['id'].replace('_', '-')}-${magiskModuleProp['version']}.zip"
