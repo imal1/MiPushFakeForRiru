@@ -16,7 +16,7 @@ android {
 
 def moduleId = "mipush_fake"
 def moduleProp = [
-        name       : "MiPushFakeForRiru",
+        name       : "MiPushFake",
         version    : "v12.0",
         versionCode: "12",
         author     : "Timothy",
