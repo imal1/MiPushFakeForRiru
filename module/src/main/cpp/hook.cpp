@@ -35,13 +35,13 @@ NEW_FUNC_DEF(int, __system_property_get, const char *key, char *value) {
     int res = old___system_property_get(key, value);
     if (key) {
         if (strcmp("ro.miui.ui.version.name", key) == 0) {
-            strcpy(value, "V9");
+            strcpy(value, "V11");
             //LOGI("system_property_get: %s -> %s", key, value);
         } else if (strcmp("ro.miui.ui.version.code", key) == 0) {
-            strcpy(value, "7");
+            strcpy(value, "9");
             //LOGI("system_property_get: %s -> %s", key, value);
         } else if (strcmp("ro.miui.version.code_time", key) == 0) {
-            strcpy(value, "1527550858");
+            strcpy(value, "1570636800");
             //LOGI("system_property_get: %s -> %s", key, value);
         } else if (strcmp("ro.miui.internal.storage", key) == 0) {
             strcpy(value, "/sdcard/");
@@ -65,13 +65,13 @@ NEW_FUNC_DEF(std::string, _ZN7android4base11GetPropertyERKNSt3__112basic_stringI
     std::string res = old__ZN7android4base11GetPropertyERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_(key, default_value);
     
     if (strcmp("ro.miui.ui.version.name", key.c_str()) == 0) {
-        res = "V9";
+        res = "V11";
         //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
     } else if (strcmp("ro.miui.ui.version.code", key.c_str()) == 0) {
-        res = "7";
+        res = "9";
         //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
     } else if (strcmp("ro.miui.version.code_time", key.c_str()) == 0) {
-        res = "1527550858";
+        res = "1570636800";
         //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
     } else if (strcmp("ro.miui.internal.storage", key.c_str()) == 0) {
         res = "/sdcard/";
