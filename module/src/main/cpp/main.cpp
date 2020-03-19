@@ -7,20 +7,42 @@
 #include "logging.h"
 #include "hook.h"
 
-#define CONFIG_PATH "/data/misc/riru/modules/mipush_fake"
+#define CONFIG_PATH "/data/user_de/0/top.trumeet.mipush"
 
-#define FAKE_CONFIGURATION_GLOBAL "/data/misc/riru/modules/mipush_fake/packages/ALL"
+#define FAKE_CONFIGURATION_GLOBAL "/data/user_de/0/top.trumeet.mipush/packages/ALL"
 
 // You can remove functions you don't need
 static char package_name[256];
 static bool enable_hook;
 static int uid;
 
-static std::vector<std::string> globalPkgBlackList = {"com.google.android",
-                                             "de.robv.android.xposed.installer",
-                                             "com.xiaomi.xmsf",
-                                             "com.tencent.mm",
-                                             "top.trumeet.mipush"};
+static std::vector<std::string> globalPkgBlackList = {"com.xiaomi.xmsf",
+                                                      "top.trumeet.mipush",
+                                                      // Android
+                                                      "com.google.android",
+                                                      "android",
+                                                      "com.android",
+                                                      // Samsung
+                                                      "com.bst",
+                                                      "com.sec",
+                                                      "com.sem",
+                                                      "com.sgmc",
+                                                      "com.dsi.ant",
+                                                      "com.wsomacp",
+                                                      "com.samsung",
+                                                      "com.diotek.sec",
+                                                      "com.enhance.gameservice",
+                                                      // XDA
+                                                      "com.xda",
+                                                      // Wechat
+                                                      "com.tencent.mm",
+                                                      // Quickpay
+                                                      "com.example",
+                                                      // Magisk
+                                                      "com.topjohnwu.magisk",
+                                                      // Xposed
+                                                      "org.meowcat.edxposed.manager",
+                                                      "de.robv.android.xposed.installer"};
 
 
 bool isAppNeedHook(JNIEnv *pEnv, jstring pJstring);
