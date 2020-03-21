@@ -7,9 +7,11 @@
 #include "logging.h"
 #include "hook.h"
 
+#if PLATFORM_SDK_VERSION >= 24
 #define CONFIG_PATH "/data/user_de/0/top.trumeet.mipush"
-
-#define FAKE_CONFIGURATION_GLOBAL "/data/user_de/0/top.trumeet.mipush/packages/ALL"
+#else
+#define CONFIG_PATH "/data/data/top.trumeet.mipush"
+#endif
 
 // You can remove functions you don't need
 static char package_name[256];
@@ -195,7 +197,7 @@ bool isAppNeedHook(JNIEnv *env, jstring jAppDataDir) {
         }
     }
 
-    if (access(FAKE_CONFIGURATION_GLOBAL, F_OK) == 0) {
+    if (access(CONFIG_PATH "/packages/ALL", F_OK) == 0) {
         return true;
     }
 
