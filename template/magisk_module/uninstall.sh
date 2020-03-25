@@ -1,5 +1,6 @@
 #!/sbin/sh
-RIRU_MODULE_PATH="/data/misc/riru/modules"
-MODULE_ID="mipush_fake"
+MODDIR=${0%/*}
+[ ! -f "$MODDIR/riru.sh" ] && exit 1
+. $MODDIR/riru.sh
 
-rm -rf "$RIRU_MODULE_PATH/$MODULE_ID"
+rm -rf "$RIRU_MODULE_PATH"
