@@ -1,6 +1,6 @@
-# Riru - Location Report Enabler
+# Riru - MiPushFake
 
-<https://github.com/RikkaApps/Riru-LocationReportEnabler>
+<https://github.com/MiPushFramework/MiPushFakeForRiru>
 
 ## Changelog
 
