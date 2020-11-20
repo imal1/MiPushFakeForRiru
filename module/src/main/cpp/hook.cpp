@@ -1,29 +1,16 @@
-#include <cstdio>
 #include <cstring>
-#include <chrono>
-#include <fcntl.h>
 #include <unistd.h>
-#include <sys/vfs.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <dlfcn.h>
-#include <cstdlib>
-#include <string>
 #include <sys/system_properties.h>
-#include <xhook.h>
+#include <xhook/xhook.h>
 
-#include "include/riru.h"
+#include "riru.h"
 #include "logging.h"
+#include "android.h"
+#include "hook.h"
+#include "config.h"
 
 #define XHOOK_REGISTER(NAME) \
-    if (xhook_register(".*", #NAME, (void*) new_##NAME, (void **) &old_##NAME) == 0) { \
-        if (riru_get_version() >= 8) { \
-            void *f = riru_get_func(#NAME); \
-            if (f != nullptr) \
-                memcpy(&old_##NAME, &f, sizeof(void *)); \
-            riru_set_func(#NAME, (void *) new_##NAME); \
-        } \
-    } else { \
+    if (xhook_register(".*", #NAME, (void*) new_##NAME, (void **) &old_##NAME) != 0) { \
         LOGE("failed to register hook " #NAME "."); \
     }
 
@@ -33,70 +20,41 @@
 
 NEW_FUNC_DEF(int, __system_property_get, const char *key, char *value) {
     int res = old___system_property_get(key, value);
-    if (key) {
-        if (strcmp("ro.miui.ui.version.name", key) == 0) {
-            strcpy(value, "V11");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        } else if (strcmp("ro.miui.ui.version.code", key) == 0) {
-            strcpy(value, "9");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        } else if (strcmp("ro.miui.version.code_time", key) == 0) {
-            strcpy(value, "1570636800");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        } else if (strcmp("ro.miui.internal.storage", key) == 0) {
-            strcpy(value, "/sdcard/");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        } else if (strcmp("ro.product.manufacturer", key) == 0) {
-            strcpy(value, "Xiaomi");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        } else if (strcmp("ro.product.brand", key) == 0) {
-            strcpy(value, "Xiaomi");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        } else if (strcmp("ro.product.name", key) == 0) {
-            strcpy(value, "Xiaomi");
-            //LOGI("system_property_get: %s -> %s", key, value);
-        }
-
+    auto prop = Config::Properties::Find(key);
+    if (prop) {
+        LOGI("system_property_get: %s=%s -> %s", key, value, prop->value.c_str());
+        strcpy(value, prop->value.c_str());
     }
     return res;
 }
 
-NEW_FUNC_DEF(std::string, _ZN7android4base11GetPropertyERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_, const std::string &key, const std::string &default_value) {
-    std::string res = old__ZN7android4base11GetPropertyERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_(key, default_value);
-    
-    if (strcmp("ro.miui.ui.version.name", key.c_str()) == 0) {
-        res = "V11";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
-    } else if (strcmp("ro.miui.ui.version.code", key.c_str()) == 0) {
-        res = "9";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
-    } else if (strcmp("ro.miui.version.code_time", key.c_str()) == 0) {
-        res = "1570636800";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
-    } else if (strcmp("ro.miui.internal.storage", key.c_str()) == 0) {
-        res = "/sdcard/";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
-    } else if (strcmp("ro.product.manufacturer", key.c_str()) == 0) {
-        res = "Xiaomi";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
-    } else if (strcmp("ro.product.brand", key.c_str()) == 0) {
-        res = "Xiaomi";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
-    } else if (strcmp("ro.product.name", key.c_str()) == 0) {
-        res = "Xiaomi";
-        //LOGI("android::base::GetProperty: %s -> %s", key.c_str(), res.c_str());
+using callback_func = void(void *cookie, const char *name, const char *value, uint32_t serial);
+
+thread_local callback_func *saved_callback = nullptr;
+
+static void my_callback(void *cookie, const char *name, const char *value, uint32_t serial) {
+    if (!saved_callback) return;
+
+    auto prop = Config::Properties::Find(name);
+    if (!prop) {
+        saved_callback(cookie, name, value, serial);
+        return;
     }
-    return res;
+
+    LOGI("system_property_read_callback: %s=%s -> %s", name, value, prop->value.c_str());
+    saved_callback(cookie, name, prop->value.c_str(), serial);
 }
 
-void install_hook(const char *package_name, int user) {
-    LOGI("install hook for %d:%s", user, package_name);
+NEW_FUNC_DEF(void, __system_property_read_callback, const prop_info *pi, callback_func *callback, void *cookie) {
+    saved_callback = callback;
+    old___system_property_read_callback(pi, my_callback, cookie);
+}
 
+void Hook::install() {
     XHOOK_REGISTER(__system_property_get);
 
-    char sdk[PROP_VALUE_MAX + 1];
-    if (__system_property_get("ro.build.version.sdk", sdk) > 0 && atoi(sdk) >= 28) {
-        XHOOK_REGISTER(_ZN7android4base11GetPropertyERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_);
+    if (android::GetApiLevel() >= 26) {
+        XHOOK_REGISTER(__system_property_read_callback);
     }
 
     if (xhook_refresh(0) == 0)

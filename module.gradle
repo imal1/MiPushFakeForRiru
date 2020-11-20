@@ -1,19 +1,25 @@
 ext {
-    moduleId = "mipush_fake" // FIXME replace with yours
-    riruApiVersion = 6
-    riruMinVersionName = "v21.0"
+    moduleId = "mipush_fake"
+    moduleName = "MiPushFake"
+    moduleAuthor = "Timothy Zhang"
+    moduleDescription = "Fake as XiaoMI device by hook system_property_get."
+    moduleVersion = "v13"
+    moduleVersionCode = 13
+    moduleMinRiruApiVersion = 9
+    moduleMinRiruVersionName = "v22.0"
+    moduleMaxRiruApiVersion = 9
 
     moduleProp = [
-            name       : "MiPushFake", // FIXME replace with yours
-            version    : "v14.0", // FIXME replace with yours
-            versionCode: "14", // FIXME replace with yours
-            author     : "Timothy Zhang", // FIXME replace with yours
-            description: "Fake as XiaoMI device by hook system_property_get.", // FIXME replace with yours
-            api        : riruApiVersion
+            name       : moduleName,
+            version    : moduleVersion,
+            versionCode: moduleVersionCode.toString(),
+            author     : moduleAuthor,
+            description: moduleDescription,
+            minApi     : moduleMinRiruApiVersion
     ]
 
     magiskModuleProp = [
-            id         : "riru-${moduleId.replace('_', '-')}",
+            id         : "riru_$moduleId",
             name       : "Riru - ${moduleProp['name']}",
             version    : moduleProp['version'],
             versionCode: moduleProp['versionCode'],

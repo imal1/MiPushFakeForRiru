@@ -3,14 +3,23 @@ apply from: file(rootProject.file('module.gradle'))
 
 android {
     compileSdkVersion rootProject.ext.targetSdkVersion
+    ndkVersion rootProject.ext.ndkVersion
     defaultConfig {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         externalNativeBuild {
             cmake {
-                arguments "-DMODULE_NAME:STRING=riru_$moduleId"
+                arguments "-DMODULE_NAME:STRING=riru_$moduleId",
+                        "-DRIRU_MODULE_ID=$moduleId",
+                        "-DRIRU_MODULE_API_VERSION=$moduleMaxRiruApiVersion",
+                        "-DRIRU_MODULE_VERSION=$moduleVersionCode",
+                        "-DRIRU_MODULE_VERSION_NAME:STRING=\"$moduleVersion\""
+
             }
         }
+    }
+    buildFeatures {
+        prefab true
     }
     externalNativeBuild {
         cmake {
@@ -20,28 +29,25 @@ android {
     }
 }
 
-def moduleProp = [
-        name       : "MiPushFake",
-        version    : "v13.0",
-        versionCode: "13",
-        author     : "Timothy",
-        description: "Fake as XiaoMI device by hook system_property_get. Require Riru-Core installed..",
-        api        : riruApiVersion
-]
+repositories {
+    mavenLocal()
+    jcenter()
+    maven { url 'https://dl.bintray.com/rikkaw/Libraries' }
+}
 
-def magiskModuleProp = [
-        id         : "riru-${moduleId.replace('_', '-')}",
-        name       : "Riru - ${moduleProp['name']}",
-        version    : moduleProp['version'],
-        versionCode: moduleProp['versionCode'],
-        author     : moduleProp['author'],
-        description: moduleProp['description']
-]
+dependencies {
+    implementation 'rikka.ndk:riru:9.1'
+    implementation 'rikka.ndk.thirdparty:xhook:1.2.0'
+    implementation 'rikka.ndk.thirdparty:nativehelper:20201111'
+}
 
 def outDir = file("$rootDir/out")
 def magiskDir = file("$outDir/magisk_module")
-def zipName = "magisk-${magiskModuleProp['id'].replace('_', '-')}-${magiskModuleProp['version']}.zip"
+def zipName = "${magiskModuleProp['id'].replace('_', '-')}-${magiskModuleProp['version']}.zip"
 def riruDir = "$magiskDir/riru"
+
+
+import org.apache.tools.ant.filters.FixCrLfFilter
 
 import java.nio.file.Files
 import java.security.MessageDigest
@@ -59,8 +65,6 @@ static def renameOrFail(File from, File to) {
         throw new IOException("Unable reanme file $from to $to")
     }
 }
-
-import org.apache.tools.ant.filters.FixCrLfFilter
 
 android.libraryVariants.all { variant ->
     def task = variant.assembleProvider.get()
@@ -81,8 +85,8 @@ android.libraryVariants.all { variant ->
             include 'riru.sh'
             filter { line ->
                 line.replaceAll('%%%RIRU_MODULE_ID%%%', moduleId)
-                        .replaceAll('%%%RIRU_MIN_API_VERSION%%%', riruApiVersion.toString())
-                        .replaceAll('%%%RIRU_MIN_VERSION_NAME%%%', riruMinVersionName)
+                        .replaceAll('%%%RIRU_MIN_API_VERSION%%%', moduleMinRiruApiVersion.toString())
+                        .replaceAll('%%%RIRU_MIN_VERSION_NAME%%%', moduleMinRiruVersionName)
             }
             filter(FixCrLfFilter.class,
                     eol: FixCrLfFilter.CrLf.newInstance("lf"))
