@@ -7,7 +7,7 @@ if [ ! -f "$TMPDIR/verify.sh" ]; then
   ui_print    "*********************************************************"
   ui_print    "! Unable to extract verify.sh!"
   ui_print    "! This zip may be corrupted, please try downloading again"
-  abort_clean "*********************************************************"
+  abort "*********************************************************"
 fi
 . $TMPDIR/verify.sh
 
@@ -46,20 +46,59 @@ else
   fi
 fi
 
-# Riru files
-ui_print "- Extracting extra files"
-[ -d "$RIRU_MODULE_PATH" ] || mkdir -p "$RIRU_MODULE_PATH" || abort_clean "! Can't create $RIRU_MODULE_PATH"
+set_perm_recursive "$MODPATH" 0 0 0755 0644
 
-# set permission just in case
-set_perm "$RIRU_PATH" 0 0 0700
-set_perm "$RIRU_PATH/modules" 0 0 0700
-set_perm "$RIRU_MODULE_PATH" 0 0 0700
-set_perm "$RIRU_MODULE_PATH/bin" 0 0 0700
+# extract Riru files
+ui_print "- Extracting extra files"
+[ -d "$RIRU_MODULE_PATH" ] || mkdir -p "$RIRU_MODULE_PATH" || abort "! Can't create $RIRU_MODULE_PATH"
 
 rm -f "$RIRU_MODULE_PATH/module.prop.new"
 extract "$ZIPFILE" 'riru/module.prop.new' "$RIRU_MODULE_PATH" true
-set_perm "$RIRU_MODULE_PATH/module.prop.new" 0 0 0600
+set_perm "$RIRU_MODULE_PATH/module.prop.new" 0 0 0600 $RIRU_SECONTEXT
 
-# set permissions
-ui_print "- Setting permissions"
-set_perm_recursive "$MODPATH" 0 0 0755 0644
+# Create default config if necessary
+CONFIG_PATH="$RIRU_MODULE_PATH/config"
+
+if [ ! -d "$CONFIG_PATH/properties" ]; then
+    ui_print "- Creating default configuration (1)"
+    mkdir -p "$CONFIG_PATH/properties"
+    echo -n "V11" > "$CONFIG_PATH/properties/ro.miui.ui.version.name"
+    echo -n "9" > "$CONFIG_PATH/properties/ro.miui.ui.version.code"
+    echo -n "1570636800" > "$CONFIG_PATH/properties/ro.miui.version.code_time"
+    echo -n "/sdcard/" > "$CONFIG_PATH/properties/ro.miui.internal.storage"
+    echo -n "Xiaomi" > "$CONFIG_PATH/properties/ro.product.manufacturer"
+    echo -n "Xiaomi" > "$CONFIG_PATH/properties/ro.product.brand"
+    echo -n "Xiaomi" > "$CONFIG_PATH/properties/ro.product.name"
+fi
+
+if [ ! -d "$CONFIG_PATH/packages" ]; then
+    ui_print "- Creating default configuration (2)"
+    mkdir -p "$CONFIG_PATH/packages"
+    touch "$CONFIG_PATH/packages/cmb.pb"
+    touch "$CONFIG_PATH/packages/cn.adidas.app"
+    touch "$CONFIG_PATH/packages/com.autonavi.minimap"
+    touch "$CONFIG_PATH/packages/com.coolapk.market"
+    touch "$CONFIG_PATH/packages/com.dianping.v1"
+    touch "$CONFIG_PATH/packages/com.eastmoney.android.fund"
+    touch "$CONFIG_PATH/packages/com.eg.android.AlipayGphone"
+    touch "$CONFIG_PATH/packages/com.huami.watch.hmwatchmanager"
+    touch "$CONFIG_PATH/packages/com.icbc"
+    touch "$CONFIG_PATH/packages/com.sankuai.meituan"
+    touch "$CONFIG_PATH/packages/com.smzdm.client.android"
+    touch "$CONFIG_PATH/packages/com.starbucks.cn"
+    touch "$CONFIG_PATH/packages/com.taobao.idlefish"
+    touch "$CONFIG_PATH/packages/com.taobao.taobao"
+    touch "$CONFIG_PATH/packages/com.tencent.weread"
+    touch "$CONFIG_PATH/packages/com.tigerbrokers.stock"
+    touch "$CONFIG_PATH/packages/com.wudaokou.hippo"
+    touch "$CONFIG_PATH/packages/com.xes.jazhanghui.activity"
+    touch "$CONFIG_PATH/packages/com.xiaomi.hm.health"
+    touch "$CONFIG_PATH/packages/com.xiaomi.smarthome"
+    touch "$CONFIG_PATH/packages/com.xiaomi.wearable"
+    touch "$CONFIG_PATH/packages/com.ximalaya.ting.android"
+    touch "$CONFIG_PATH/packages/cool.dingstock.mobile"
+    touch "$CONFIG_PATH/packages/me.ele"
+    touch "$CONFIG_PATH/packages/org.xinkb.blackboard.android"
+fi
+
+set_perm $CONFIG_PATH 0 0 0600 $RIRU_SECONTEXT

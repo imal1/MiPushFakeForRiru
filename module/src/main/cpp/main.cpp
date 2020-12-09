@@ -1,113 +1,69 @@
+#include <cstdio>
+#include <cstdlib>
 #include <jni.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <string>
-#include <vector>
-#include <unistd.h>
+#include <riru.h>
+#include <nativehelper/scoped_utf_chars.h>
+#include <sys/system_properties.h>
+
 #include "logging.h"
 #include "hook.h"
+#include "android.h"
+#include "config.h"
 
-#define CONFIG_PATH "/data/misc/riru/modules/mipush_fake"
+static char saved_package_name[256] = {0};
+static int saved_uid;
 
-#define FAKE_CONFIGURATION_GLOBAL "/data/misc/riru/modules/mipush_fake/packages/ALL"
+#ifdef DEBUG
+static char saved_process_name[256] = {0};
+#endif
 
-// You can remove functions you don't need
-static char package_name[256];
-static bool enable_hook;
-static int uid;
+static void appProcessPre(JNIEnv *env, jint *uid, jstring *jNiceName, jstring *jAppDataDir) {
 
-static std::vector<std::string> globalPkgBlackList = {"com.google.android",
-                                             "de.robv.android.xposed.installer",
-                                             "com.xiaomi.xmsf",
-                                             "com.tencent.mm",
-                                             "top.trumeet.mipush"};
+    saved_uid = *uid;
 
+#ifdef DEBUG
+    memset(saved_process_name, 0, 256);
 
-bool isAppNeedHook(JNIEnv *pEnv, jstring pJstring);
-
-void injectBuild(JNIEnv *pEnv);
-
-static void appProcessPre(JNIEnv *env, jint _uid, jstring appDataDir);
-
-static void appProcessPost(JNIEnv *env);
-
-extern "C" {
-#define EXPORT __attribute__((visibility("default"))) __attribute__((used))
-EXPORT void nativeForkAndSpecializePre(
-        JNIEnv *env, jclass clazz, jint *_uid, jint *gid, jintArray *gids, jint *runtimeFlags,
-        jobjectArray *rlimits, jint *mountExternal, jstring *seInfo, jstring *niceName,
-        jintArray *fdsToClose, jintArray *fdsToIgnore, jboolean *is_child_zygote,
-        jstring *instructionSet, jstring *appDataDir, jboolean *isTopApp, jobjectArray *pkgDataInfoList,
-        jboolean *bindMountAppStorageDirs) {
-    appProcessPre(env, *_uid, *appDataDir);
-}
-
-EXPORT int nativeForkAndSpecializePost(JNIEnv *env, jclass clazz, jint res) {
-    if (res == 0) {
-        // in app process
-        appProcessPost(env);
-    } else {
-        // in zygote process, res is child pid
-        // don't print log here, see https://github.com/RikkaApps/Riru/blob/77adfd6a4a6a81bfd20569c910bc4854f2f84f5e/riru-core/jni/main/jni_native_method.cpp#L55-L66
+    if (*jNiceName) {
+        sprintf(saved_process_name, "%s", ScopedUtfChars(env, *jNiceName).c_str());
     }
-    return 0;
-}
+#endif
 
-EXPORT __attribute__((visibility("default"))) void specializeAppProcessPre(
-        JNIEnv *env, jclass clazz, jint *_uid, jint *gid, jintArray *gids, jint *runtimeFlags,
-        jobjectArray *rlimits, jint *mountExternal, jstring *seInfo, jstring *niceName,
-        jboolean *startChildZygote, jstring *instructionSet, jstring *appDataDir,
-        jboolean *isTopApp, jobjectArray *pkgDataInfoList, jboolean *bindMountAppStorageDirs) {
-    // this is added from Android Q, but seems it's disabled by default
-    appProcessPre(env, *_uid, *appDataDir);
+    memset(saved_package_name, 0, 256);
 
-}
+    if (*jAppDataDir) {
+        auto appDataDir = ScopedUtfChars(env, *jAppDataDir).c_str();
+        int user = 0;
 
-EXPORT __attribute__((visibility("default"))) int specializeAppProcessPost(
-        JNIEnv *env, jclass clazz) {
-    // this is added from Android Q beta, but seems Google disabled this in following updates
+        // /data/user/<user_id>/<package>
+        if (sscanf(appDataDir, "/data/%*[^/]/%d/%s", &user, saved_package_name) == 2)
+            goto found;
 
-    appProcessPost(env);
-    return 0;
-}
+        // /mnt/expand/<id>/user/<user_id>/<package>
+        if (sscanf(appDataDir, "/mnt/expand/%*[^/]/%*[^/]/%d/%s", &user, saved_package_name) == 2)
+            goto found;
 
-EXPORT void nativeForkSystemServerPre(
-        JNIEnv *env, jclass clazz, uid_t *uid, gid_t *gid, jintArray *gids, jint *runtimeFlags,
-        jobjectArray *rlimits, jlong *permittedCapabilities, jlong *effectiveCapabilities) {
+        // /data/data/<package>
+        if (sscanf(appDataDir, "/data/%*[^/]/%s", saved_package_name) == 1)
+            goto found;
 
-}
+        // nothing found
+        saved_package_name[0] = '\0';
 
-EXPORT int nativeForkSystemServerPost(JNIEnv *env, jclass clazz, jint res) {
-    if (res == 0) {
-        // in system server process
-    } else {
-        // in zygote process, res is child pid
-        // don't print log here, see https://github.com/RikkaApps/Riru/blob/77adfd6a4a6a81bfd20569c910bc4854f2f84f5e/riru-core/jni/main/jni_native_method.cpp#L55-L66
+        found:;
     }
-    return 0;
-}
-
-EXPORT int shouldSkipUid(int uid) {
-    // by default, Riru only call module functions in "normal app processes" (10000 <= uid % 100000 <= 19999)
-    // false = don't skip
-    return false;
-}
-
-EXPORT void onModuleLoaded() {
-    // called when the shared library of Riru core is loaded
-}
 }
 
 void injectBuild(JNIEnv *env) {
     if (env == nullptr) {
-        LOGW("failed to inject android.os.Build for %s due to env is null", package_name);
+        LOGW("failed to inject android.os.Build for %s due to env is null", saved_package_name);
         return;
     }
-    LOGI("inject android.os.Build for %s ", package_name);
+    LOGI("inject android.os.Build for %s ", saved_package_name);
 
     jclass build_class = env->FindClass("android/os/Build");
     if (build_class == nullptr) {
-        LOGW("failed to inject android.os.Build for %s due to build is null", package_name);
+        LOGW("failed to inject android.os.Build for %s due to build is null", saved_package_name);
         return;
     }
 
@@ -136,65 +92,102 @@ void injectBuild(JNIEnv *env) {
     env->DeleteLocalRef(new_str);
 }
 
-bool isAppNeedHook(JNIEnv *env, jstring jAppDataDir) {
-    if (jAppDataDir == nullptr) {
-        return false;
+static void appProcessPost(
+        JNIEnv *env, const char *from, const char *package_name, jint uid) {
+
+    LOGD("%s: uid=%d, package=%s, process=%s", from, uid, package_name, saved_process_name);
+
+    if (Config::Packages::Find(package_name)) {
+        LOGI("install hook for %d:%s", uid / 100000, package_name);
+        injectBuild(env);
+        Hook::install();
     }
+}
 
-    const char *appDataDir = env->GetStringUTFChars(jAppDataDir, nullptr);
+static void forkAndSpecializePre(
+        JNIEnv *env, jclass clazz, jint *uid, jint *gid, jintArray *gids, jint *runtimeFlags,
+        jobjectArray *rlimits, jint *mountExternal, jstring *seInfo, jstring *niceName,
+        jintArray *fdsToClose, jintArray *fdsToIgnore, jboolean *is_child_zygote,
+        jstring *instructionSet, jstring *appDataDir, jboolean *isTopApp, jobjectArray *pkgDataInfoList,
+        jobjectArray *whitelistedDataInfoList, jboolean *bindMountAppDataDirs, jboolean *bindMountAppStorageDirs) {
 
-    int user = 0;
-    while (true) {
-        // /data/user/<user_id>/<package>
-        if (sscanf(appDataDir, "/data/%*[^/]/%d/%s", &user, package_name) == 2)
-            break;
+    appProcessPre(env, uid, niceName, appDataDir);
+}
 
-        // /mnt/expand/<id>/user/<user_id>/<package>
-        if (sscanf(appDataDir, "/mnt/expand/%*[^/]/%*[^/]/%d/%s", &user, package_name) == 2)
-            break;
-
-        // /data/data/<package>
-        if (sscanf(appDataDir, "/data/%*[^/]/%s", package_name) == 1)
-            break;
-
-        package_name[0] = '\0';
-        return false;
+static void forkAndSpecializePost(JNIEnv *env, jclass clazz, jint res) {
+    if (res == 0) {
+        appProcessPost(env, "forkAndSpecialize", saved_package_name, saved_uid);
     }
-    env->ReleaseStringUTFChars(jAppDataDir, appDataDir);
+}
 
-    std::string pkgName = package_name;
-    for (auto &s : globalPkgBlackList) {
-        if (pkgName.find(s) != std::string::npos) {
-            return false;
+static void specializeAppProcessPre(
+        JNIEnv *env, jclass clazz, jint *uid, jint *gid, jintArray *gids, jint *runtimeFlags,
+        jobjectArray *rlimits, jint *mountExternal, jstring *seInfo, jstring *niceName,
+        jboolean *startChildZygote, jstring *instructionSet, jstring *appDataDir,
+        jboolean *isTopApp, jobjectArray *pkgDataInfoList, jobjectArray *whitelistedDataInfoList,
+        jboolean *bindMountAppDataDirs, jboolean *bindMountAppStorageDirs) {
+
+    appProcessPre(env, uid, niceName, appDataDir);
+}
+
+static void specializeAppProcessPost(
+        JNIEnv *env, jclass clazz) {
+    appProcessPost(env, "specializeAppProcess", saved_package_name, saved_uid);
+}
+
+static void onModuleLoaded() {
+    Config::Load();
+}
+
+extern "C" {
+
+int riru_api_version;
+RiruApiV9 *riru_api_v9;
+
+void *init(void *arg) {
+    static int step = 0;
+    step += 1;
+
+    static void *_module;
+
+    switch (step) {
+        case 1: {
+            auto core_max_api_version = *(int *) arg;
+            riru_api_version = core_max_api_version <= RIRU_MODULE_API_VERSION ? core_max_api_version : RIRU_MODULE_API_VERSION;
+            return &riru_api_version;
+        }
+        case 2: {
+            switch (riru_api_version) {
+                case 9: {
+                    riru_api_v9 = (RiruApiV9 *) arg;
+
+                    auto module = (RiruModuleInfoV9 *) malloc(sizeof(RiruModuleInfoV9));
+                    memset(module, 0, sizeof(RiruModuleInfoV9));
+                    _module = module;
+
+                    module->supportHide = true;
+
+                    module->version = RIRU_MODULE_VERSION;
+                    module->versionName = RIRU_MODULE_VERSION_NAME;
+                    module->onModuleLoaded = onModuleLoaded;
+                    module->forkAndSpecializePre = forkAndSpecializePre;
+                    module->forkAndSpecializePost = forkAndSpecializePost;
+                    module->specializeAppProcessPre = specializeAppProcessPre;
+                    module->specializeAppProcessPost = specializeAppProcessPost;
+                    return module;
+                }
+                default: {
+                    return nullptr;
+                }
+            }
+        }
+        case 3: {
+            free(_module);
+            return nullptr;
+        }
+        default: {
+            return nullptr;
         }
     }
-
-    if (access(FAKE_CONFIGURATION_GLOBAL, F_OK) == 0) {
-        return true;
-    }
-
-    if (access(CONFIG_PATH "/packages", R_OK) == 0) {
-        char path[PATH_MAX];
-        snprintf(path, PATH_MAX, CONFIG_PATH "/packages/%d.%s", user, package_name);
-        return access(path, F_OK) == 0;
-    }
-
-    return false;
 }
-
-
-
-static void appProcessPre(JNIEnv *env, jint _uid, jstring appDataDir) {
-
-    uid = _uid;
-    enable_hook = isAppNeedHook(env, appDataDir);
-}
-
-
-static void appProcessPost(JNIEnv *env) {
-
-    if (enable_hook) {
-        injectBuild(env);
-        install_hook(package_name, uid / 100000);
-    }
 }
