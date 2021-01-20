@@ -3,11 +3,11 @@ ext {
     moduleName = "MiPushFake"
     moduleAuthor = "Timothy Zhang"
     moduleDescription = "Fake as XiaoMI device by hook system_property_get."
-    moduleVersion = "v13"
-    moduleVersionCode = 13
+    moduleVersion = "v14"
+    moduleVersionCode = 14
     moduleMinRiruApiVersion = 9
-    moduleMinRiruVersionName = "v22.0"
-    moduleMaxRiruApiVersion = 9
+    moduleMinRiruVersionName = "v23.0"
+    moduleRiruApiVersion = 10
 
     moduleProp = [
             name       : moduleName,
